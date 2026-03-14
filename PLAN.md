@@ -87,7 +87,7 @@ wrappers — no business logic. All logic stays in `scripts/` and `infra/`.
     Depends on all four Terraform files existing.
   - GitHub Secrets required (mirror of `terraform.tfvars` vars):
     `HCLOUD_TOKEN`, `SSH_PUBLIC_KEY` (key content, not path),
-    `DEPLOYER_IP`, `SERVER_LOCATION`, `SERVER_TYPE`.
+    `SERVER_LOCATION`, `SERVER_TYPE`.
   - Validation: workflow lint via `actionlint` if available; otherwise confirm
     the file is valid YAML: `python3 -c "import yaml,sys; yaml.safe_load(sys.stdin)" < .github/workflows/terraform.yml`.
 

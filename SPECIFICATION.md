@@ -81,8 +81,12 @@ Abstract it so swapping to DigitalOcean or Vultr requires only changing
 
 - `hcloud_server` — CX22 (2 vCPU, 4 GB RAM, ~€4/mo), Ubuntu 24.04,
   location: `hel1` (Helsinki). Name: `personal-agent`.
-- `hcloud_firewall` — allow inbound: SSH (22) from deployer IP only,
+- `hcloud_firewall` — allow inbound: SSH (22) from anywhere (0.0.0.0/0),
   HTTP (80), HTTPS (443). Deny all other inbound.
+  SSH is open to any IP; security relies entirely on key-based auth
+  (password auth disabled by Ansible `base` role). This is necessary
+  because Terraform runs from GitHub Actions where outbound IPs are not
+  static.
 - `hcloud_ssh_key` — upload the deployer's public key.
 - `hcloud_volume` — commented out, ready to uncomment in Phase 2.
   10 GB persistent volume for n8n data.
@@ -103,10 +107,9 @@ remote state. Do NOT require remote state for MVP.
 | Variable              | Default | Description                       |
 |-----------------------|---------|-----------------------------------|
 | `hcloud_token`        | —       | Hetzner API token                 |
-| `ssh_public_key_path` | —       | Path to local public key file     |
-| `deployer_ip`         | —       | Your IP for SSH firewall rule     |
+| `ssh_public_key`      | —       | Public key content (not a path)   |
 | `server_location`     | `hel1`  | Hetzner datacenter                |
-| `server_type`         | `cx22`  | Hetzner server type               |
+| `server_type`         | `cx32`  | Hetzner server type               |
 
 ---
 
