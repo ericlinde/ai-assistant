@@ -4,6 +4,9 @@ Tasks are in strict dependency order matching the build order in SPECIFICATION.m
 Each task maps to exactly one item in that list.
 All shell scripts use TDD: write a failing test first, then implement.
 
+GitHub Actions files live in `.github/workflows/` only. They are thin trigger
+wrappers — no business logic. All logic stays in `scripts/` and `infra/`.
+
 ---
 
 ## Phase 1 — Running Agent
@@ -74,6 +77,19 @@ All shell scripts use TDD: write a failing test first, then implement.
   - File: `infra/terraform/outputs.tf`
   - Exports `server_ip` and `server_id`. Depends on `main.tf`.
   - Validation: `cd infra/terraform && terraform validate` (full module must pass clean).
+
+- [ ] **Create .github/workflows/terraform.yml**
+  - File: `.github/workflows/terraform.yml`
+  - Thin trigger only: checks out repo, injects GitHub Secrets as env vars,
+    runs `terraform init && terraform apply -auto-approve` inside
+    `infra/terraform/`. Triggered manually (`workflow_dispatch`) and on push
+    to `main` when any `infra/terraform/**` file changes. No business logic.
+    Depends on all four Terraform files existing.
+  - GitHub Secrets required (mirror of `terraform.tfvars` vars):
+    `HCLOUD_TOKEN`, `SSH_PUBLIC_KEY` (key content, not path),
+    `DEPLOYER_IP`, `SERVER_LOCATION`, `SERVER_TYPE`.
+  - Validation: workflow lint via `actionlint` if available; otherwise confirm
+    the file is valid YAML: `python3 -c "import yaml,sys; yaml.safe_load(sys.stdin)" < .github/workflows/terraform.yml`.
 
 ---
 

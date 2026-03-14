@@ -15,9 +15,13 @@ Single VPS, Docker Compose runtime, n8n workflows, plain-text memory file.
 ## Core principles
 
 1. **No vendor lock-in.** Everything must run from a plain terminal on any
-   Linux host. No GitHub-specific features, no Vercel, no Railway, no PaaS.
-   Terraform providers and Ansible roles must be swappable without touching
-   application code.
+   Linux host. No Vercel, no Railway, no PaaS. Terraform providers and Ansible
+   roles must be swappable without touching application code.
+   **Exception:** a minimal GitHub Actions workflow file (`.github/workflows/`)
+   is permitted solely as a trigger layer — it may only check out the repo,
+   inject secrets from GitHub Secrets, and call the existing shell scripts
+   (`terraform apply`, `deploy.sh`, etc.). No business logic belongs in the
+   Actions file.
 
 2. **Single source of truth.** The repo contains everything needed to
    recreate the full system from zero. Secrets are the only exception
@@ -53,7 +57,8 @@ Single VPS, Docker Compose runtime, n8n workflows, plain-text memory file.
 ## Hard constraints
 
 - Zero hardcoded secrets anywhere — all values from `.env` or Ansible Vault
-- No GitHub Actions-specific syntax in deploy scripts
+- GitHub Actions-specific syntax confined to `.github/workflows/` only —
+  never in `scripts/`, `infra/`, or any other file
 - All shell scripts must pass `shellcheck` with no warnings
 - All Terraform files must pass `terraform validate`
 - All JSON files must be valid (parseable by `python3 -m json.tool`)
