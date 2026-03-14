@@ -25,7 +25,7 @@ wrappers — no business logic. All logic stays in `scripts/` and `infra/`.
     Depends on `.gitignore` (so `.env` is already ignored before this is committed).
   - TDD: Write `validate-env.sh` test harness (see task below) expecting all variable
     names to be parseable from this file before writing the file itself.
-  - Validation: `python3 -c "import re,pathlib; names=[l.split('=')[0] for l in pathlib.Path('.env.example').read_text().splitlines() if re.match(r'^[A-Z_]+=', l)]; assert len(names) >= 15, names"` — must list all 15+ vars.
+  - Validation: `python -c "import re,pathlib; names=[l.split('=')[0] for l in pathlib.Path('.env.example').read_text().splitlines() if re.match(r'^[A-Z0-9_]+=', l)]; assert len(names) >= 15, names"` — must list all 15+ vars.
 
 - [ ] **Create README.md**
   - File: `README.md`
