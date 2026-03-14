@@ -55,7 +55,7 @@ After completing each task, tick its checkbox (`- [ ]` → `- [x]`) and commit P
 
 ### Infrastructure — Terraform
 
-- [ ] **Create infra/terraform/versions.tf**
+- [x] **Create infra/terraform/versions.tf**
   - File: `infra/terraform/versions.tf`
   - Pins `terraform` version and the `hetznercloud/hcloud` provider version.
     Includes a commented-out S3-compatible backend block. No other files depend
