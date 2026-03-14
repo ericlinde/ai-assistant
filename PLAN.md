@@ -13,13 +13,13 @@ wrappers — no business logic. All logic stays in `scripts/` and `infra/`.
 
 ### Foundations (repo scaffold + secrets contract)
 
-- [ ] **Create .gitignore**
+- [x] **Create .gitignore**
   - File: `.gitignore`
   - Ensures secrets, state files, and Ansible inventory are never committed.
     No dependencies. Must exist before any other file is added to git.
   - Validation: `git check-ignore .env terraform.tfstate ansible/inventory` — all three must print the filename.
 
-- [ ] **Create .env.example**
+- [x] **Create .env.example**
   - File: `.env.example`
   - Documents every required secret as a placeholder. Consumed by `validate-env.sh`.
     Depends on `.gitignore` (so `.env` is already ignored before this is committed).
@@ -27,7 +27,7 @@ wrappers — no business logic. All logic stays in `scripts/` and `infra/`.
     names to be parseable from this file before writing the file itself.
   - Validation: `python -c "import re,pathlib; names=[l.split('=')[0] for l in pathlib.Path('.env.example').read_text().splitlines() if re.match(r'^[A-Z0-9_]+=', l)]; assert len(names) >= 15, names"` — must list all 15+ vars.
 
-- [ ] **Create README.md**
+- [x] **Create README.md**
   - File: `README.md`
   - Top-level orientation: what the system is, quickstart steps referencing
     `setup.sh` → `deploy.sh`, link to `docs/`. No secrets, no hardcoded values.
