@@ -73,6 +73,15 @@ Single VPS, Docker Compose runtime, n8n workflows, plain-text memory file.
 
 ---
 
+## Development approach
+
+- **Use TDD where applicable.** Write tests before implementation for shell scripts,
+  Python, and any logic-bearing code. For infrastructure files (Terraform, Ansible,
+  nginx config), write the validation command first and confirm it fails before
+  writing the file, then confirm it passes after.
+
+---
+
 ## When making changes
 
 - **Structural or architectural changes:** read SPECIFICATION.md first
