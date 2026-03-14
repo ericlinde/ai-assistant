@@ -1,3 +1,4 @@
+
 # PLAN.md — Personal Agent Build Plan
 
 Tasks are in strict dependency order matching the build order in SPECIFICATION.md.
@@ -6,6 +7,8 @@ All shell scripts use TDD: write a failing test first, then implement.
 
 GitHub Actions files live in `.github/workflows/` only. They are thin trigger
 wrappers — no business logic. All logic stays in `scripts/` and `infra/`.
+
+After completing each task, tick its checkbox (`- [ ]` → `- [x]`) and commit PLAN.md.
 
 ---
 
