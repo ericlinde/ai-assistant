@@ -36,7 +36,7 @@ After completing each task, tick its checkbox (`- [ ]` → `- [x]`) and commit P
     `setup.sh` → `deploy.sh`, link to `docs/`. No secrets, no hardcoded values.
   - Validation: `python3 -c "import pathlib; t=pathlib.Path('README.md').read_text(); assert 'setup.sh' in t and 'deploy.sh' in t"`.
 
-- [ ] **Create scripts/validate-env.sh**
+- [x] **Create scripts/validate-env.sh**
   - File: `scripts/validate-env.sh`
   - Parses `.env.example` for required variable names; checks each is set and
     non-empty in the environment or `.env`; exits 1 if any missing.
