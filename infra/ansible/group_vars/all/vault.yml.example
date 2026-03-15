@@ -1,5 +1,8 @@
-# Copy this file to vault.yml and encrypt with: ansible-vault encrypt vault.yml
-# Never commit the real vault.yml (it is gitignored via ansible/group_vars/all/vault.yml).
+# Copy this file to vault.yml, fill in real values, then encrypt:
+#   ansible-vault encrypt infra/ansible/group_vars/all/vault.yml
+#
+# Commit the encrypted vault.yml — GitHub Actions decrypts it using ANSIBLE_VAULT_PASSWORD.
+# NEVER commit vault.yml before encrypting it.
 #
 # Ansible Vault scope: secrets needed to reach and configure the server.
 # Application runtime secrets live in Infisical Cloud (see .env.example).
