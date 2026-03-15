@@ -204,7 +204,9 @@ Both credentials come from the same Google Cloud project.
 
 1. Create account at **app.infisical.com**
 2. Create a new project (e.g. "personal-agent")
-3. Go to **Settings → Machine Identities → Create** — name it `agent-runtime`
+3. Create a machine identity for runtime secret access:
+   - Go to your project → **Access Control → Machine Identities → + Add Machine Identity to Project**
+   - Create a new identity named `agent-runtime` with role **Viewer** (read-only is all the runtime agent needs)
    - Copy the token → Ansible Vault `vault_infisical_token`
 4. Add all secrets listed in the Infisical column of the overview table above.
    Fastest way via CLI (run once):
