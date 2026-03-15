@@ -1,0 +1,63 @@
+---
+# Test playbook for the base role.
+# Run BEFORE applying the role to confirm assertions fail on a fresh host,
+# then run AFTER applying the role to confirm they all pass.
+#
+# Usage:
+#   ansible-playbook -i <inventory> infra/ansible/tests/test-base.yml
+#
+- name: Test base role assertions
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Assert UTC timezone is set
+      ansible.builtin.assert:
+        that:
+          - ansible_date_time.tz == "UTC"
+        fail_msg: "Timezone is not UTC (got: {{ ansible_date_time.tz }})"
+
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: Assert fail2ban is running
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services['fail2ban.service'] is defined
+          - ansible_facts.services['fail2ban.service'].state == 'running'
+        fail_msg: "fail2ban is not running"
+
+    - name: Assert unattended-upgrades is installed
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services['unattended-upgrades.service'] is defined
+        fail_msg: "unattended-upgrades service not found"
+
+    - name: Check ufw status
+      ansible.builtin.command: ufw status
+      register: ufw_status
+      changed_when: false
+
+    - name: Assert ufw is active
+      ansible.builtin.assert:
+        that:
+          - "'Status: active' in ufw_status.stdout"
+        fail_msg: "ufw is not active"
+
+    - name: Read sshd_config
+      ansible.builtin.slurp:
+        src: /etc/ssh/sshd_config
+      register: sshd_config_raw
+
+    - name: Assert PermitRootLogin is disabled
+      ansible.builtin.assert:
+        that:
+          - "'PermitRootLogin no' in (sshd_config_raw.content | b64decode)"
+        fail_msg: "PermitRootLogin is not set to no in sshd_config"
+
+    - name: Assert PasswordAuthentication is disabled
+      ansible.builtin.assert:
+        that:
+          - "'PasswordAuthentication no' in (sshd_config_raw.content | b64decode)"
+        fail_msg: "PasswordAuthentication is not set to no in sshd_config"

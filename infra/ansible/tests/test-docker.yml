@@ -1,0 +1,47 @@
+---
+# Test playbook for the docker role.
+# Run BEFORE applying the role to confirm assertions fail on a fresh host,
+# then run AFTER to confirm they pass.
+#
+# Usage:
+#   ansible-playbook -i <inventory> infra/ansible/tests/test-docker.yml
+#
+- name: Test docker role assertions
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Check docker info
+      ansible.builtin.command: docker info
+      register: docker_info
+      changed_when: false
+      failed_when: false
+
+    - name: Assert docker daemon is reachable
+      ansible.builtin.assert:
+        that:
+          - docker_info.rc == 0
+        fail_msg: "docker info failed — Docker may not be installed or running"
+
+    - name: Check docker compose version
+      ansible.builtin.command: docker compose version
+      register: compose_version
+      changed_when: false
+      failed_when: false
+
+    - name: Assert docker compose plugin is available
+      ansible.builtin.assert:
+        that:
+          - compose_version.rc == 0
+        fail_msg: "docker compose version failed — Compose plugin not installed"
+
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: Assert docker service is running
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services['docker.service'] is defined
+          - ansible_facts.services['docker.service'].state == 'running'
+        fail_msg: "docker.service is not running"

@@ -1,0 +1,13 @@
+---
+- name: Configure agent server
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    deploy_user: deploy
+
+  roles:
+    - role: base
+    - role: docker
+    - role: agent

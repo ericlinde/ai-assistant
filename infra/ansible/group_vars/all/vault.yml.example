@@ -1,0 +1,32 @@
+# Create vault.yml using ansible-vault create — this opens your editor in an encrypted
+# context so plaintext values are never written to disk unencrypted:
+#
+#   ansible-vault create infra/ansible/group_vars/all/vault.yml
+#
+# Copy the variable names below (without the leading #) into the editor, fill in values,
+# save and close. The file is encrypted immediately on save.
+#
+# To edit later:
+#   ansible-vault edit infra/ansible/group_vars/all/vault.yml
+#
+# Commit the encrypted vault.yml — GitHub Actions decrypts it using ANSIBLE_VAULT_PASSWORD.
+# NEVER use a plain text editor to write secrets directly into the repo.
+#
+# Ansible Vault scope: secrets needed to reach and configure the server.
+# Application runtime secrets live in Infisical Cloud (see .env.example).
+# CI/CD secrets (HCLOUD_TOKEN, R2_*, SSH_PUBLIC_KEY, ANSIBLE_VAULT_PASSWORD)
+# live in GitHub Secrets.
+#
+# GitHub Actions unlocks this vault using ANSIBLE_VAULT_PASSWORD, then uses
+# vault_ssh_private_key to SSH into the VPS and vault_infisical_token to
+# configure the runtime secret source.
+
+# vault_ssh_private_key: |
+#   -----BEGIN OPENSSH PRIVATE KEY-----
+#   <contents of ~/.ssh/id_ed25519_agent>
+#   -----END OPENSSH PRIVATE KEY-----
+
+# vault_infisical_client_id: ""      # Infisical Universal Auth Client ID (UUID)
+# vault_infisical_client_secret: ""  # Infisical Universal Auth Client Secret
+# vault_domain: ""                   # e.g. agent.ejlinde.com  (also set in Infisical as DOMAIN)
+# vault_admin_email: ""              # for Let's Encrypt certificate (also set in Infisical as ADMIN_EMAIL)

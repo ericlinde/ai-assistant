@@ -1,7 +1,9 @@
 # Secrets
 .env
+.token
+.client_id
+.client_secret
 *.tfvars
-ansible/group_vars/all/vault.yml
 
 # Terraform state
 *.tfstate
@@ -19,3 +21,7 @@ __pycache__/
 *.pyc
 *.pyo
 node_modules/
+
+# IDE / tooling
+.idea/
+.claude/

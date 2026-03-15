@@ -1,0 +1,58 @@
+# Required GitHub Secrets for this workflow:
+#   HCLOUD_TOKEN         — Hetzner Cloud API token (Terraform only)
+#   SSH_PUBLIC_KEY       — public key written to the VPS for the deploy user
+#   DEPLOYER_IP          — your IP, used to scope SSH firewall rule
+#   SERVER_LOCATION      — Hetzner datacenter (e.g. nbg1)
+#   SERVER_TYPE          — server size (e.g. cx22)
+#   R2_ACCESS_KEY_ID     — Cloudflare R2 access key ID (67900688154fce7908ac7e41326c10ac)
+#   R2_SECRET_ACCESS_KEY — Cloudflare R2 secret access key
+name: Terraform
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "infra/terraform/**"
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: infra/terraform
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: "1.9.0"
+
+      - name: Write SSH public key to temp file
+        run: |
+          echo "${{ secrets.SSH_PUBLIC_KEY }}" > /tmp/deployer.pub
+
+      - name: Terraform Init
+        run: tofu init
+        env:
+          TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+
+      - name: Terraform Validate
+        run: tofu validate
+
+      - name: Terraform Apply
+        run: tofu apply -auto-approve
+        env:
+          TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
+          TF_VAR_ssh_public_key_path: /tmp/deployer.pub
+          TF_VAR_deployer_ip: ${{ secrets.DEPLOYER_IP }}
+          TF_VAR_server_location: ${{ secrets.SERVER_LOCATION }}
+          TF_VAR_server_type: ${{ secrets.SERVER_TYPE }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}

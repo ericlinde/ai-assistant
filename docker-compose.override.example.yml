@@ -1,0 +1,22 @@
+# Local development overrides.
+# Copy to docker-compose.override.yml (gitignored) and adjust as needed.
+# This file is NOT used in production — docker-compose.yml is the source of truth.
+
+services:
+  n8n:
+    environment:
+      - N8N_PROTOCOL=http
+      - N8N_HOST=localhost
+      - WEBHOOK_URL=http://localhost:5678/
+    ports:
+      - "0.0.0.0:5678:5678"
+
+  nginx:
+    # Disable nginx locally — access n8n directly on port 5678
+    profiles:
+      - disabled
+
+  certbot:
+    # Disable certbot locally — no TLS needed for dev
+    profiles:
+      - disabled

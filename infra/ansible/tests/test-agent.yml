@@ -1,0 +1,52 @@
+---
+# Test playbook for the agent role.
+# Run BEFORE applying the role to confirm assertions fail on a fresh host,
+# then run AFTER to confirm they pass.
+#
+# Usage:
+#   ansible-playbook -i <inventory> infra/ansible/tests/test-agent.yml
+#
+- name: Test agent role assertions
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Assert /opt/agent directory exists
+      ansible.builtin.stat:
+        path: /opt/agent
+      register: agent_dir
+
+    - name: Fail if /opt/agent does not exist
+      ansible.builtin.assert:
+        that:
+          - agent_dir.stat.exists
+          - agent_dir.stat.isdir
+        fail_msg: "/opt/agent directory does not exist"
+
+    - name: Assert .env file is present and non-empty
+      ansible.builtin.stat:
+        path: /opt/agent/.env
+      register: env_file
+
+    - name: Fail if .env is missing or empty
+      ansible.builtin.assert:
+        that:
+          - env_file.stat.exists
+          - env_file.stat.size > 0
+        fail_msg: "/opt/agent/.env is missing or empty"
+
+    - name: Check n8n health endpoint
+      ansible.builtin.uri:
+        url: http://localhost:5678/healthz
+        method: GET
+        status_code: 200
+        timeout: 10
+      register: n8n_health
+      failed_when: false
+
+    - name: Assert n8n health endpoint returns 200
+      ansible.builtin.assert:
+        that:
+          - n8n_health.status == 200
+        fail_msg: "n8n health endpoint did not return 200 (got: {{ n8n_health.status | default('no response') }})"

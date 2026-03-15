@@ -1,0 +1,155 @@
+{
+  "name": "realtime-webhook",
+  "nodes": [
+    {
+      "id": "webhook-trigger",
+      "name": "Gmail Pub/Sub Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "parameters": {
+        "path": "gmail",
+        "httpMethod": "POST",
+        "responseMode": "onReceived",
+        "responseData": "noData"
+      },
+      "webhookId": "gmail-pubsub"
+    },
+    {
+      "id": "read-agent-memory",
+      "name": "Read Agent Memory",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [220, 0],
+      "parameters": {
+        "operation": "download",
+        "fileId": "={{ $env.GOOGLE_DRIVE_MEMORY_FILE_ID }}"
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": { "id": "1", "name": "Google Drive" }
+      }
+    },
+    {
+      "id": "fetch-message",
+      "name": "Fetch Gmail Message",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [440, 0],
+      "parameters": {
+        "operation": "get",
+        "messageId": "={{ JSON.parse(Buffer.from($json.body.message.data, 'base64').toString()).emailAddress }}"
+      },
+      "credentials": {
+        "gmailOAuth2": { "id": "2", "name": "Gmail" }
+      }
+    },
+    {
+      "id": "deduplicate",
+      "name": "Check Not Already Processed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 0],
+      "parameters": {
+        "jsCode": "const memory = $('Read Agent Memory').first().json.content || '';\nconst processed = new Set(memory.match(/^[a-zA-Z0-9]+$/gm) || []);\nconst id = $input.first().json.id;\nif (processed.has(id)) return [];\nreturn $input.all();"
+      }
+    },
+    {
+      "id": "claude-api",
+      "name": "Claude API — Parse Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 0],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $env.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "model", "value": "claude-sonnet-4-6" },
+            { "name": "max_tokens", "value": 2048 },
+            {
+              "name": "system",
+              "value": "={{ $('Read Agent Memory').first().json.systemPrompt }}"
+            },
+            {
+              "name": "messages",
+              "value": "=[{\"role\":\"user\",\"content\":{{ JSON.stringify([$input.first().json]) }}}]"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "parse-output",
+      "name": "Parse Claude Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 0],
+      "parameters": {
+        "jsCode": "const text = $input.first().json.content[0].text;\ntry {\n  const tasks = JSON.parse(text);\n  return tasks.map(t => ({ json: t }));\n} catch (e) {\n  throw new Error('Claude output is not valid JSON: ' + text.slice(0, 200));\n}"
+      }
+    },
+    {
+      "id": "create-linear-issues",
+      "name": "Create Linear Issues",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 0],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linear.app/graphql",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ $env.LINEAR_API_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id url } } }"
+            },
+            {
+              "name": "variables",
+              "value": "={ \"input\": { \"teamId\": \"e96a084f-7033-4b61-be58-3fb1e6679a50\", \"projectId\": \"4edee420-cd11-48be-90fb-01bd19f54a1f\", \"title\": {{ JSON.stringify($json.title) }}, \"description\": {{ JSON.stringify($json.description) }}, \"priority\": {{ $json.priority }} } }"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Gmail Pub/Sub Webhook": {
+      "main": [[{ "node": "Read Agent Memory", "type": "main", "index": 0 }]]
+    },
+    "Read Agent Memory": {
+      "main": [[{ "node": "Fetch Gmail Message", "type": "main", "index": 0 }]]
+    },
+    "Fetch Gmail Message": {
+      "main": [[{ "node": "Check Not Already Processed", "type": "main", "index": 0 }]]
+    },
+    "Check Not Already Processed": {
+      "main": [[{ "node": "Claude API — Parse Message", "type": "main", "index": 0 }]]
+    },
+    "Claude API — Parse Message": {
+      "main": [[{ "node": "Parse Claude Output", "type": "main", "index": 0 }]]
+    },
+    "Parse Claude Output": {
+      "main": [[{ "node": "Create Linear Issues", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
