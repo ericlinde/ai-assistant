@@ -9,7 +9,7 @@ terraform {
   }
 
   backend "s3" {
-    endpoint                    = "https://13f543ea961e0c42234d00af783c18f9.r2.cloudflarestorage.com"
+    endpoint                    = "https://13f543ea961e0c42234d00af783c18f9.eu.r2.cloudflarestorage.com"
     bucket                      = "agent-terraform-state"
     key                         = "terraform.tfstate"
     region                      = "us-east-1"
