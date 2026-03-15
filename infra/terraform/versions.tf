@@ -9,12 +9,12 @@ terraform {
   }
 
   backend "s3" {
-    endpoint                    = "https://13f543ea961e0c42234d00af783c18f9.eu.r2.cloudflarestorage.com"
-    bucket                      = "agent-terraform-state"
-    key                         = "terraform.tfstate"
+    endpoint = "https://13f543ea961e0c42234d00af783c18f9.eu.r2.cloudflarestorage.com"
+    bucket   = "agent-terraform-state"
+    key      = "terraform.tfstate"
     # R2 ignores the region value — "us-east-1" is a dummy required by the S3 protocol.
     # Actual location is determined by the endpoint URL above.
-    region = "us-east-1"
+    region                      = "us-east-1"
     skip_credentials_validation = true
     skip_metadata_api_check     = true
     skip_region_validation      = true
