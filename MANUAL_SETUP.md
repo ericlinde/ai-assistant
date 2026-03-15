@@ -227,16 +227,29 @@ Both credentials come from the same Google Cloud project.
 
 ## 12. Ansible Vault
 
-Use `ansible-vault create` — this opens your editor in an encrypted context so
-plaintext values are **never written to disk unencrypted**. Do not use a plain
-text editor to write secrets directly into the repo.
+Use `ansible-vault create` via WSL Debian — this opens your editor in an encrypted
+context so plaintext values are **never written to disk unencrypted**. Do not use
+a plain text editor to write secrets directly into the repo.
 
-```bash
-ansible-vault create infra/ansible/group_vars/all/vault.yml
+Prerequisites (one-time, in PowerShell):
+```
+wsl -d Debian sudo apt update
+wsl -d Debian sudo apt install -y ansible
 ```
 
-You will be prompted for a vault password — choose a strong one and store it in
-your password manager. Fill in the following in your editor:
+Generate a strong vault password:
+```
+openssl rand -base64 32
+```
+Store it in your password manager — you will need it every time you edit the vault
+and as the GitHub Secret `ANSIBLE_VAULT_PASSWORD`.
+
+Create the vault (run from PowerShell):
+```
+wsl -d Debian ansible-vault create /mnt/c/Users/ericl/source/repos/ericlinde/ai-assistant/infra/ansible/group_vars/all/vault.yml
+```
+
+You will be prompted for the vault password. Fill in the following in the editor that opens:
 
 ```yaml
 vault_ssh_private_key: |
@@ -249,8 +262,8 @@ vault_admin_email: "you@yourdomain.com"
 ```
 
 Save and close — the file is encrypted immediately on save. To edit later:
-```bash
-ansible-vault edit infra/ansible/group_vars/all/vault.yml
+```
+wsl -d Debian ansible-vault edit /mnt/c/Users/ericl/source/repos/ericlinde/ai-assistant/infra/ansible/group_vars/all/vault.yml
 ```
 
 Commit the encrypted file — it is safe and required for CI:
