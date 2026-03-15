@@ -1,6 +1,8 @@
 # Secrets
 .env
 .token
+.client_id
+.client_secret
 *.tfvars
 
 # Terraform state

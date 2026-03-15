@@ -9,11 +9,18 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${REPO_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 
-# Load INFISICAL_TOKEN from .token file if not already set in environment
-TOKEN_FILE="${REPO_ROOT}/.token"
-if [ -z "${INFISICAL_TOKEN:-}" ] && [ -f "${TOKEN_FILE}" ]; then
-  INFISICAL_TOKEN="$(cat "${TOKEN_FILE}")"
-  export INFISICAL_TOKEN
+# Load Infisical Universal Auth credentials from files if not already set
+CLIENT_ID_FILE="${REPO_ROOT}/.client_id"
+CLIENT_SECRET_FILE="${REPO_ROOT}/.client_secret"
+
+if [ -z "${INFISICAL_CLIENT_ID:-}" ] && [ -f "${CLIENT_ID_FILE}" ]; then
+  INFISICAL_CLIENT_ID="$(cat "${CLIENT_ID_FILE}")"
+  export INFISICAL_CLIENT_ID
+fi
+
+if [ -z "${INFISICAL_CLIENT_SECRET:-}" ] && [ -f "${CLIENT_SECRET_FILE}" ]; then
+  INFISICAL_CLIENT_SECRET="$(cat "${CLIENT_SECRET_FILE}")"
+  export INFISICAL_CLIENT_SECRET
 fi
 
 N8N_HOST="${N8N_HOST:-localhost}"

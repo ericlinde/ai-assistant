@@ -27,10 +27,13 @@ EOF
 # --- Stub .env.example for no-json-dir test (no .infisical.json) ---
 cp "${TMP_DIR}/.env.example" "${NO_JSON_DIR}/.env.example"
 
-# --- Infisical CLI stub: outputs JSON controlled by STUB_INFISICAL_JSON env var ---
+# --- Infisical CLI stub ---
+# Handles: login (returns a stub token), secrets (returns JSON from STUB_INFISICAL_JSON)
 cat > "${STUB_BIN}/infisical" <<'EOF'
 #!/usr/bin/env bash
-if [ "${1:-}" = "secrets" ]; then
+if [ "${1:-}" = "login" ]; then
+  echo "stub-session-token"
+elif [ "${1:-}" = "secrets" ]; then
   if [ -n "${STUB_INFISICAL_JSON:-}" ]; then
     echo "${STUB_INFISICAL_JSON}"
   else
@@ -61,21 +64,24 @@ run_test() {
 
 # Test 1: infisical CLI not found → exit 1
 run_test "exits 1 when infisical CLI not found" "fail" \
-  env INFISICAL_TOKEN=test-token \
+  env INFISICAL_CLIENT_ID=test-id \
+  INFISICAL_CLIENT_SECRET=test-secret \
   REPO_ROOT="${TMP_DIR}" \
   PATH="${PYTHON_DIR}:/usr/bin:/bin" \
   bash "${VALIDATE}"
 
-# Test 2: INFISICAL_TOKEN not set, no .token file → exit 1
-run_test "exits 1 when INFISICAL_TOKEN not set" "fail" \
-  env INFISICAL_TOKEN="" \
+# Test 2: INFISICAL_CLIENT_ID not set → exit 1
+run_test "exits 1 when INFISICAL_CLIENT_ID not set" "fail" \
+  env INFISICAL_CLIENT_ID="" \
+  INFISICAL_CLIENT_SECRET=test-secret \
   REPO_ROOT="${TMP_DIR}" \
   PATH="${STUB_BIN}:${PYTHON_DIR}:/usr/bin:/bin" \
   bash "${VALIDATE}"
 
 # Test 3: .infisical.json missing → exit 1
 run_test "exits 1 when .infisical.json missing" "fail" \
-  env INFISICAL_TOKEN=test-token \
+  env INFISICAL_CLIENT_ID=test-id \
+  INFISICAL_CLIENT_SECRET=test-secret \
   REPO_ROOT="${NO_JSON_DIR}" \
   PATH="${STUB_BIN}:${PYTHON_DIR}:/usr/bin:/bin" \
   bash "${VALIDATE}"
@@ -83,7 +89,8 @@ run_test "exits 1 when .infisical.json missing" "fail" \
 # Test 4: all secrets present → exit 0
 ALL_JSON='[{"secretKey":"REQ_VAR_ONE","secretValue":"v1"},{"secretKey":"REQ_VAR_TWO","secretValue":"v2"}]'
 run_test "exits 0 when all secrets present in Infisical" "pass" \
-  env INFISICAL_TOKEN=test-token \
+  env INFISICAL_CLIENT_ID=test-id \
+  INFISICAL_CLIENT_SECRET=test-secret \
   REPO_ROOT="${TMP_DIR}" \
   PATH="${STUB_BIN}:${PYTHON_DIR}:/usr/bin:/bin" \
   STUB_INFISICAL_JSON="${ALL_JSON}" \
@@ -92,7 +99,8 @@ run_test "exits 0 when all secrets present in Infisical" "pass" \
 # Test 5: missing secret → exit 1
 MISSING_JSON='[{"secretKey":"REQ_VAR_ONE","secretValue":"v1"}]'
 run_test "exits 1 when a required secret is missing from Infisical" "fail" \
-  env INFISICAL_TOKEN=test-token \
+  env INFISICAL_CLIENT_ID=test-id \
+  INFISICAL_CLIENT_SECRET=test-secret \
   REPO_ROOT="${TMP_DIR}" \
   PATH="${STUB_BIN}:${PYTHON_DIR}:/usr/bin:/bin" \
   STUB_INFISICAL_JSON="${MISSING_JSON}" \

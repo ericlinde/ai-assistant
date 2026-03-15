@@ -16,6 +16,8 @@
       - "--exclude=.git"
       - "--exclude=.env"
       - "--exclude=.token"
+      - "--exclude=.client_id"
+      - "--exclude=.client_secret"
       - "--exclude=infra/terraform/"
       - "--exclude=*.tfstate"
       - "--exclude=*.tfstate.backup"
@@ -32,10 +34,18 @@
     state: present
     update_cache: true
 
-- name: Write Infisical machine identity token to /opt/agent/.token
+- name: Write Infisical Universal Auth client ID to /opt/agent/.client_id
   ansible.builtin.copy:
-    content: "{{ vault_infisical_token }}"
-    dest: /opt/agent/.token
+    content: "{{ vault_infisical_client_id }}"
+    dest: /opt/agent/.client_id
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0600"
+
+- name: Write Infisical Universal Auth client secret to /opt/agent/.client_secret
+  ansible.builtin.copy:
+    content: "{{ vault_infisical_client_secret }}"
+    dest: /opt/agent/.client_secret
     owner: "{{ deploy_user }}"
     group: "{{ deploy_user }}"
     mode: "0600"
@@ -47,4 +57,5 @@
   changed_when: true
   environment:
     PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-    INFISICAL_TOKEN: "{{ vault_infisical_token }}"
+    INFISICAL_CLIENT_ID: "{{ vault_infisical_client_id }}"
+    INFISICAL_CLIENT_SECRET: "{{ vault_infisical_client_secret }}"

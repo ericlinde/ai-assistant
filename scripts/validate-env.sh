@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Validates that:
 #   1. The infisical CLI is installed
-#   2. INFISICAL_TOKEN is set (or a .token file exists)
+#   2. INFISICAL_CLIENT_ID and INFISICAL_CLIENT_SECRET are set (or credential files exist)
 #   3. .infisical.json project config exists
 #   4. All secret names from .env.example are present in Infisical (prod)
 # Usage: validate-env.sh
@@ -12,15 +12,21 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${REPO_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 
 ENV_EXAMPLE="${REPO_ROOT}/.env.example"
-TOKEN_FILE="${REPO_ROOT}/.token"
+CLIENT_ID_FILE="${REPO_ROOT}/.client_id"
+CLIENT_SECRET_FILE="${REPO_ROOT}/.client_secret"
 INFISICAL_JSON="${REPO_ROOT}/.infisical.json"
 
 # ---------------------------------------------------------------------------
-# Load INFISICAL_TOKEN from .token file if not already set in environment
+# Load credentials from files if not already set in environment
 # ---------------------------------------------------------------------------
-if [ -z "${INFISICAL_TOKEN:-}" ] && [ -f "${TOKEN_FILE}" ]; then
-  INFISICAL_TOKEN="$(cat "${TOKEN_FILE}")"
-  export INFISICAL_TOKEN
+if [ -z "${INFISICAL_CLIENT_ID:-}" ] && [ -f "${CLIENT_ID_FILE}" ]; then
+  INFISICAL_CLIENT_ID="$(cat "${CLIENT_ID_FILE}")"
+  export INFISICAL_CLIENT_ID
+fi
+
+if [ -z "${INFISICAL_CLIENT_SECRET:-}" ] && [ -f "${CLIENT_SECRET_FILE}" ]; then
+  INFISICAL_CLIENT_SECRET="$(cat "${CLIENT_SECRET_FILE}")"
+  export INFISICAL_CLIENT_SECRET
 fi
 
 # ---------------------------------------------------------------------------
@@ -32,10 +38,15 @@ if ! command -v infisical > /dev/null 2>&1; then
 fi
 
 # ---------------------------------------------------------------------------
-# 2. Check INFISICAL_TOKEN is set
+# 2. Check credentials are set
 # ---------------------------------------------------------------------------
-if [ -z "${INFISICAL_TOKEN:-}" ]; then
-  echo "ERROR: INFISICAL_TOKEN is not set and ${TOKEN_FILE} does not exist." >&2
+if [ -z "${INFISICAL_CLIENT_ID:-}" ]; then
+  echo "ERROR: INFISICAL_CLIENT_ID is not set and ${CLIENT_ID_FILE} does not exist." >&2
+  exit 1
+fi
+
+if [ -z "${INFISICAL_CLIENT_SECRET:-}" ]; then
+  echo "ERROR: INFISICAL_CLIENT_SECRET is not set and ${CLIENT_SECRET_FILE} does not exist." >&2
   exit 1
 fi
 
@@ -48,7 +59,20 @@ if [ ! -f "${INFISICAL_JSON}" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 4. Fetch available secret names from Infisical
+# 4. Generate session token via Universal Auth
+# ---------------------------------------------------------------------------
+INFISICAL_TOKEN="$(infisical login \
+  --method=universal-auth \
+  --clientId="${INFISICAL_CLIENT_ID}" \
+  --clientSecret="${INFISICAL_CLIENT_SECRET}" \
+  --plain --silent 2>/dev/null)" || {
+  echo "ERROR: Failed to authenticate with Infisical. Check client ID and secret." >&2
+  exit 1
+}
+export INFISICAL_TOKEN
+
+# ---------------------------------------------------------------------------
+# 5. Fetch available secret names from Infisical
 # ---------------------------------------------------------------------------
 AVAILABLE_JSON="$(infisical secrets --format=json --silent 2>/dev/null)" || {
   echo "ERROR: Failed to fetch secrets from Infisical. Check token and project config." >&2
@@ -66,7 +90,7 @@ for item in data:
 }
 
 # ---------------------------------------------------------------------------
-# 5. Check all required names from .env.example are present in Infisical
+# 6. Check all required names from .env.example are present in Infisical
 # ---------------------------------------------------------------------------
 if [ ! -f "${ENV_EXAMPLE}" ]; then
   echo "ERROR: .env.example not found at ${ENV_EXAMPLE}" >&2
