@@ -1,0 +1,79 @@
+# Required GitHub Secrets:
+#   ANSIBLE_VAULT_PASSWORD — decrypts vault.yml to extract SSH key + Infisical token
+#   R2_ACCESS_KEY_ID       — Cloudflare R2 backend (needed to read tofu output)
+#   R2_SECRET_ACCESS_KEY   — Cloudflare R2 backend
+#
+# Server IP is read directly from Terraform state — no inventory file needed.
+#
+# Triggered: manually, or automatically after the Terraform workflow succeeds on main.
+name: Ansible
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Terraform"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  configure:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: "1.9.0"
+
+      - name: Terraform Init
+        working-directory: infra/terraform
+        run: tofu init
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+
+      - name: Get server IP from Terraform state
+        id: server
+        working-directory: infra/terraform
+        run: echo "ip=$(tofu output -raw server_ip)" >> "$GITHUB_OUTPUT"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+
+      - name: Install Ansible
+        run: pip install ansible
+
+      - name: Write vault password file
+        run: echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > /tmp/vault_pass
+
+      - name: Extract SSH private key from vault
+        run: |
+          ansible-vault decrypt infra/ansible/group_vars/all/vault.yml \
+            --vault-password-file /tmp/vault_pass \
+            --output /tmp/vault_plain.yml
+          python3 -c "
+          import yaml, os, stat
+          v = yaml.safe_load(open('/tmp/vault_plain.yml'))
+          key_path = '/tmp/deploy_key'
+          open(key_path, 'w').write(v['vault_ssh_private_key'])
+          os.chmod(key_path, stat.S_IRUSR | stat.S_IWUSR)
+          "
+          rm /tmp/vault_plain.yml
+
+      - name: Run Ansible playbook
+        run: |
+          ansible-playbook \
+            -i "${{ steps.server.outputs.ip }}," \
+            infra/ansible/playbook.yml \
+            --vault-password-file /tmp/vault_pass \
+            --extra-vars "ansible_user=root ansible_ssh_private_key_file=/tmp/deploy_key"
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "false"
+
+      - name: Cleanup secrets
+        if: always()
+        run: rm -f /tmp/vault_pass /tmp/deploy_key

@@ -39,7 +39,7 @@ ANSIBLE_VAULT_PASSWORD                              GDRIVE_NOTEBOOK_REGISTRY_FIL
 Generate a dedicated deploy key pair (do not reuse your personal key):
 
 ```bash
-ssh-keygen -t ed25519 -C "agent-deploy" -f ~/.ssh/id_ed25519_agent -N ""
+ssh-keygen -t ed25519 -C "agent-deploy" -f ~/.ssh/id_ed25519_agent_deploy -N ""
 ```
 
 You will need:
@@ -253,16 +253,15 @@ Both credentials come from the same Google Cloud project.
 
 ## 13. Ansible inventory
 
-1. Copy the example:
-   ```bash
-   cp infra/ansible/inventory.example infra/ansible/inventory
-   ```
-2. After `terraform apply` runs and outputs `server_ip`, edit `infra/ansible/inventory`:
-   ```ini
-   [agent]
-   <server_ip> ansible_user=root
-   ```
-   The SSH key is supplied from Ansible Vault (`vault_ssh_private_key`) — no key path needed here.
+No inventory file is needed for CI runs. The Ansible GitHub Actions workflow reads
+the server IP directly from Terraform state (`tofu output server_ip`) and constructs
+a dynamic inventory on the fly.
+
+For local Ansible runs (debugging), create an inventory manually after `terraform apply`:
+```bash
+cp infra/ansible/inventory.example infra/ansible/inventory
+# Edit infra/ansible/inventory and replace the placeholder IP with the real server_ip
+```
 
 ---
 
