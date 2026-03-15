@@ -3,10 +3,18 @@
 #
 # Ansible Vault scope: secrets needed to reach and configure the server.
 # Application runtime secrets live in Infisical Cloud (see .env.example).
-# CI/CD secrets (HCLOUD_TOKEN, R2_*, SSH_PUBLIC_KEY etc.) live in GitHub Secrets.
+# CI/CD secrets (HCLOUD_TOKEN, R2_*, SSH_PUBLIC_KEY, ANSIBLE_VAULT_PASSWORD)
+# live in GitHub Secrets.
+#
+# GitHub Actions unlocks this vault using ANSIBLE_VAULT_PASSWORD, then uses
+# vault_ssh_private_key to SSH into the VPS and vault_infisical_token to
+# configure the runtime secret source.
 
-# vault_ssh_private_key_path: ""  # path to deployer SSH private key on the Ansible host
-#                                 # e.g. /home/user/.ssh/id_ed25519
-# vault_infisical_token: ""       # Infisical machine identity token (written to /opt/agent/.token)
-# vault_domain: ""                # e.g. agent.ejlinde.com  (also set in Infisical as DOMAIN)
-# vault_admin_email: ""           # for Let's Encrypt certificate (also set in Infisical as ADMIN_EMAIL)
+# vault_ssh_private_key: |
+#   -----BEGIN OPENSSH PRIVATE KEY-----
+#   <contents of ~/.ssh/id_ed25519_agent>
+#   -----END OPENSSH PRIVATE KEY-----
+
+# vault_infisical_token: ""   # Infisical machine identity token (written to /opt/agent/.token)
+# vault_domain: ""            # e.g. agent.ejlinde.com  (also set in Infisical as DOMAIN)
+# vault_admin_email: ""       # for Let's Encrypt certificate (also set in Infisical as ADMIN_EMAIL)

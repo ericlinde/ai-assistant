@@ -151,22 +151,24 @@ All tasks idempotent:
 Three-tier architecture:
 
 ```
-GitHub Secrets          Ansible Vault           Infisical
-─────────────           ─────────────           ─────────
-HCLOUD_TOKEN            SSH keys                n8n secrets
-R2_ACCESS_KEY_ID        INFISICAL_TOKEN         API keys
-R2_SECRET_ACCESS_KEY    Server config           Domain config
-SSH_PUBLIC_KEY          Bootstrap creds
-DEPLOYER_IP
-SERVER_LOCATION
+GitHub Secrets          Ansible Vault              Infisical
+─────────────           ─────────────              ─────────
+HCLOUD_TOKEN            vault_ssh_private_key       n8n secrets
+SSH_PUBLIC_KEY          vault_infisical_token       API keys
+DEPLOYER_IP             vault_domain                Domain config
+SERVER_LOCATION         vault_admin_email
 SERVER_TYPE
+R2_ACCESS_KEY_ID
+R2_SECRET_ACCESS_KEY
+ANSIBLE_VAULT_PASSWORD
        │                      │                      │
        ▼                      ▼                      ▼
   GitHub Actions          Ansible              infisical run --
-  (Terraform only)    (provisioning)        docker compose up
+  (Terraform +        (provisioning)        docker compose up
+   Ansible CI)
 ```
 
-**GitHub Secrets** — what the Terraform CI workflow needs:
+**GitHub Secrets** — Terraform inputs, state backend, and vault unlock key:
 
 | Secret | Purpose |
 |---|---|
@@ -177,14 +179,15 @@ SERVER_TYPE
 | `SERVER_TYPE` | Terraform input var (e.g. `cx22`) |
 | `R2_ACCESS_KEY_ID` | Cloudflare R2 Terraform state backend |
 | `R2_SECRET_ACCESS_KEY` | Cloudflare R2 Terraform state backend |
+| `ANSIBLE_VAULT_PASSWORD` | Unlocks Ansible Vault in CI — gives access to SSH key + Infisical token |
 
-**Ansible Vault vars** (`ansible/group_vars/all/vault.yml`) — what Ansible needs to reach and configure the server:
+**Ansible Vault vars** (`ansible/group_vars/all/vault.yml`) — decrypted by CI using `ANSIBLE_VAULT_PASSWORD`:
 
 ```
-vault_ssh_private_key_path   # path to deployer private key on the Ansible host
-vault_infisical_token        # written to /opt/agent/.token on the VPS
-vault_domain                 # e.g. agent.yourdomain.com
-vault_admin_email            # for Let's Encrypt certificate
+vault_ssh_private_key    # full private key content — used by Ansible to SSH into VPS
+vault_infisical_token    # written to /opt/agent/.token on the VPS
+vault_domain             # e.g. agent.yourdomain.com
+vault_admin_email        # for Let's Encrypt certificate
 ```
 
 **Infisical secrets** (all required names listed in `.env.example`) — app runtime secrets fetched by `infisical run -- docker compose up`:

@@ -8,39 +8,52 @@ None of it can be automated. Do these once, in order, before running Terraform o
 ## Overview: what goes where
 
 ```
-GitHub Secrets          Ansible Vault           Infisical (prod env)
-─────────────           ─────────────           ────────────────────
-HCLOUD_TOKEN            vault_ssh_private_key_path   ANTHROPIC_API_KEY
-SSH_PUBLIC_KEY          vault_infisical_token        LINEAR_API_KEY
-DEPLOYER_IP             vault_domain                 GMAIL_CLIENT_ID
-SERVER_LOCATION         vault_admin_email            GMAIL_CLIENT_SECRET
-SERVER_TYPE                                          GMAIL_REFRESH_TOKEN
-R2_ACCESS_KEY_ID                                     SLACK_BOT_TOKEN
-R2_SECRET_ACCESS_KEY                                 GDRIVE_AGENT_MEMORY_FILE_ID
-                                                     GDRIVE_NOTEBOOK_REGISTRY_FILE_ID
-                                                     GDRIVE_SERVICE_ACCOUNT_JSON
-                                                     N8N_ENCRYPTION_KEY
-                                                     N8N_BASIC_AUTH_PASSWORD
-                                                     N8N_WEBHOOK_SECRET
-                                                     N8N_API_KEY
-                                                     DOMAIN
-                                                     ADMIN_EMAIL
+GitHub Secrets          Ansible Vault              Infisical (prod env)
+─────────────           ─────────────              ────────────────────
+HCLOUD_TOKEN            vault_ssh_private_key       ANTHROPIC_API_KEY
+SSH_PUBLIC_KEY          vault_infisical_token       LINEAR_API_KEY
+DEPLOYER_IP             vault_domain                GMAIL_CLIENT_ID
+SERVER_LOCATION         vault_admin_email           GMAIL_CLIENT_SECRET
+SERVER_TYPE                                         GMAIL_REFRESH_TOKEN
+R2_ACCESS_KEY_ID                                    SLACK_BOT_TOKEN
+R2_SECRET_ACCESS_KEY                                GDRIVE_AGENT_MEMORY_FILE_ID
+ANSIBLE_VAULT_PASSWORD                              GDRIVE_NOTEBOOK_REGISTRY_FILE_ID
+                                                    GDRIVE_SERVICE_ACCOUNT_JSON
+                                                    N8N_ENCRYPTION_KEY
+                                                    N8N_BASIC_AUTH_PASSWORD
+                                                    N8N_WEBHOOK_SECRET
+                                                    N8N_API_KEY
+                                                    DOMAIN
+                                                    ADMIN_EMAIL
 ```
+
+**Why this split:**
+- GitHub Secrets = only what Terraform (CI) needs + the vault password to unlock everything else
+- Ansible Vault = SSH key, Infisical token, server config — GitHub Actions decrypts the vault to get these
+- Infisical = all app runtime secrets fetched by the running containers
 
 ---
 
 ## 1. SSH key pair
 
-If you don't already have an SSH key pair on the machine you'll run Ansible from:
+Generate a dedicated deploy key pair (do not reuse your personal key):
 
 ```bash
-ssh-keygen -t ed25519 -C "agent-deploy"
-# saves to ~/.ssh/id_ed25519 (private) and ~/.ssh/id_ed25519.pub (public)
+ssh-keygen -t ed25519 -C "agent-deploy" -f ~/.ssh/id_ed25519_agent -N ""
 ```
 
 You will need:
-- The **public key** content (`cat ~/.ssh/id_ed25519.pub`) → GitHub Secret `SSH_PUBLIC_KEY`
-- The **private key path** (`~/.ssh/id_ed25519`) → Ansible Vault `vault_ssh_private_key_path`
+- The **public key** content → GitHub Secret `SSH_PUBLIC_KEY`
+  ```bash
+  cat ~/.ssh/id_ed25519_agent.pub
+  ```
+- The **private key** content → Ansible Vault `vault_ssh_private_key` (step 12)
+  ```bash
+  cat ~/.ssh/id_ed25519_agent
+  ```
+
+The private key never goes into GitHub Secrets directly — it lives in Ansible Vault,
+which GitHub Actions unlocks using `ANSIBLE_VAULT_PASSWORD`.
 
 ---
 
@@ -92,17 +105,20 @@ This domain becomes `DOMAIN` in Infisical (e.g. `agent.yourdomain.com`).
 
 Go to **github.com → your repo → Settings → Secrets and variables → Actions → New repository secret**.
 
-Add all seven:
+Add all eight:
 
 | Secret | Where to get it |
 |---|---|
 | `HCLOUD_TOKEN` | Step 2 |
-| `SSH_PUBLIC_KEY` | Step 1 — full contents of `~/.ssh/id_ed25519.pub` |
+| `SSH_PUBLIC_KEY` | Step 1 — full contents of `~/.ssh/id_ed25519_agent.pub` |
 | `DEPLOYER_IP` | Your current public IP — check at whatismyip.com |
 | `SERVER_LOCATION` | Your choice — e.g. `hel1` |
 | `SERVER_TYPE` | e.g. `cx22` |
 | `R2_ACCESS_KEY_ID` | Step 4 |
 | `R2_SECRET_ACCESS_KEY` | Step 4 |
+| `ANSIBLE_VAULT_PASSWORD` | Your chosen vault password from step 12 |
+
+Note: `ANSIBLE_VAULT_PASSWORD` must be added after step 12 (you choose the password there).
 
 ---
 
@@ -215,9 +231,13 @@ Both credentials come from the same Google Cloud project.
    ```bash
    cp infra/ansible/group_vars/all/vault.yml.example infra/ansible/group_vars/all/vault.yml
    ```
-2. Edit `vault.yml` and fill in real values (remove the `#` comment markers):
+2. Edit `vault.yml` and fill in real values (remove the `#` comment markers).
+   `vault_ssh_private_key` is the full private key content — paste it as a multiline string:
    ```yaml
-   vault_ssh_private_key_path: "~/.ssh/id_ed25519"
+   vault_ssh_private_key: |
+     -----BEGIN OPENSSH PRIVATE KEY-----
+     <paste contents of ~/.ssh/id_ed25519_agent here>
+     -----END OPENSSH PRIVATE KEY-----
    vault_infisical_token: "<from Infisical step 11>"
    vault_domain: "agent.yourdomain.com"
    vault_admin_email: "you@yourdomain.com"
@@ -226,7 +246,8 @@ Both credentials come from the same Google Cloud project.
    ```bash
    ansible-vault encrypt infra/ansible/group_vars/all/vault.yml
    ```
-   Choose a strong vault password and store it in your password manager.
+   Choose a strong vault password, store it in your password manager, and add it
+   to GitHub Secrets as `ANSIBLE_VAULT_PASSWORD` (step 5).
 
 ---
 
@@ -239,8 +260,9 @@ Both credentials come from the same Google Cloud project.
 2. After `terraform apply` runs and outputs `server_ip`, edit `infra/ansible/inventory`:
    ```ini
    [agent]
-   <server_ip> ansible_user=root ansible_ssh_private_key_file=~/.ssh/id_ed25519
+   <server_ip> ansible_user=root
    ```
+   The SSH key is supplied from Ansible Vault (`vault_ssh_private_key`) — no key path needed here.
 
 ---
 
@@ -257,12 +279,17 @@ With all of the above done:
 
 # 3. Update DNS A record (step 3) with the server_ip
 
-# 4. Update infra/ansible/inventory with the server_ip
+# 4. Update infra/ansible/inventory with the server_ip and commit + push
+#    GitHub Actions (Ansible workflow) will trigger automatically
 
-# 5. Run Ansible from your local machine
-ansible-playbook -i infra/ansible/inventory infra/ansible/playbook.yml --ask-vault-pass
+# 5. Watch the Ansible workflow run in: Actions → Ansible
 
 # 6. Visit https://<DOMAIN> — n8n should be running
+```
+
+To run Ansible locally instead (e.g. for debugging):
+```bash
+ansible-playbook -i infra/ansible/inventory infra/ansible/playbook.yml --ask-vault-pass
 ```
 
 ---
