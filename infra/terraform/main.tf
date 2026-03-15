@@ -1,3 +1,7 @@
+provider "hcloud" {
+  token = var.hcloud_token
+}
+
 resource "hcloud_ssh_key" "deployer" {
   name       = "deployer"
   public_key = file(var.ssh_public_key_path)
