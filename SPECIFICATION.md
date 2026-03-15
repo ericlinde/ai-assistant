@@ -140,41 +140,63 @@ All tasks idempotent:
 All tasks idempotent:
 - Create `/opt/agent` directory, owned by deploy user
 - rsync repo files to `/opt/agent`
-  (exclude: `.git`, `.env`, `infra/terraform/`, `*.tfstate`)
-- Template `.env` from Ansible Vault vars
-- Run `validate-env.sh` — fail playbook if any secret missing
-- `docker compose pull`
-- `docker compose up -d`
-- Wait for n8n health endpoint (retry 10×, 3 s sleep)
-- Import n8n workflows via n8n REST API:
-  `GET /api/v1/workflows` to check existing by name,
-  `PUT` if exists, `POST` if new
-- Verify health: assert n8n health endpoint returns HTTP 200
+  (exclude: `.git`, `.env`, `.token`, `infra/terraform/`, `*.tfstate`)
+- Install Infisical CLI via official apt repo
+- Write `vault_infisical_token` to `/opt/agent/.token` (mode 0600)
+- Run `deploy.sh` with `INFISICAL_TOKEN` set — handles validate, pull, up,
+  health check, and workflow import via `infisical run --`
 
 ### Secrets management
 
-Use **Ansible Vault**. Store encrypted vars in
-`ansible/group_vars/all/vault.yml` (encrypted file committed to git;
-plaintext never committed). Document all var names in
-`ansible/group_vars/all/vault.yml.example`.
-
-Required vault vars:
+Three-tier architecture:
 
 ```
-vault_anthropic_api_key
-vault_linear_api_key
-vault_gmail_client_id
-vault_gmail_client_secret
-vault_gmail_refresh_token
-vault_slack_bot_token
-vault_n8n_encryption_key              # random 32-char string
-vault_n8n_basic_auth_password
-vault_gdrive_agent_memory_file_id
-vault_gdrive_notebook_registry_file_id
-vault_gdrive_service_account_json     # base64-encoded service account key JSON
-vault_domain                          # e.g. agent.yourdomain.com
-vault_admin_email                     # for Let's Encrypt
-vault_hcloud_token                    # Terraform only, not needed at runtime
+GitHub Secrets          Ansible Vault           Infisical
+─────────────           ─────────────           ─────────
+HCLOUD_TOKEN            SSH keys                n8n secrets
+R2_ACCESS_KEY_ID        INFISICAL_TOKEN         API keys
+R2_SECRET_ACCESS_KEY    Server config           Domain config
+SSH_PUBLIC_KEY          Bootstrap creds
+DEPLOYER_IP
+SERVER_LOCATION
+SERVER_TYPE
+       │                      │                      │
+       ▼                      ▼                      ▼
+  GitHub Actions          Ansible              infisical run --
+  (Terraform only)    (provisioning)        docker compose up
+```
+
+**GitHub Secrets** — what the Terraform CI workflow needs:
+
+| Secret | Purpose |
+|---|---|
+| `HCLOUD_TOKEN` | Terraform creates the VPS |
+| `SSH_PUBLIC_KEY` | Terraform registers key on VPS at provision time |
+| `DEPLOYER_IP` | Terraform scopes SSH firewall rule |
+| `SERVER_LOCATION` | Terraform input var (e.g. `hel1`) |
+| `SERVER_TYPE` | Terraform input var (e.g. `cx22`) |
+| `R2_ACCESS_KEY_ID` | Cloudflare R2 Terraform state backend |
+| `R2_SECRET_ACCESS_KEY` | Cloudflare R2 Terraform state backend |
+
+**Ansible Vault vars** (`ansible/group_vars/all/vault.yml`) — what Ansible needs to reach and configure the server:
+
+```
+vault_ssh_private_key_path   # path to deployer private key on the Ansible host
+vault_infisical_token        # written to /opt/agent/.token on the VPS
+vault_domain                 # e.g. agent.yourdomain.com
+vault_admin_email            # for Let's Encrypt certificate
+```
+
+**Infisical secrets** (all required names listed in `.env.example`) — app runtime secrets fetched by `infisical run -- docker compose up`:
+
+```
+ANTHROPIC_API_KEY
+LINEAR_API_KEY
+GMAIL_CLIENT_ID  GMAIL_CLIENT_SECRET  GMAIL_REFRESH_TOKEN
+SLACK_BOT_TOKEN
+GDRIVE_AGENT_MEMORY_FILE_ID  GDRIVE_NOTEBOOK_REGISTRY_FILE_ID  GDRIVE_SERVICE_ACCOUNT_JSON
+N8N_ENCRYPTION_KEY  N8N_BASIC_AUTH_PASSWORD  N8N_WEBHOOK_SECRET  N8N_API_KEY
+DOMAIN  ADMIN_EMAIL
 ```
 
 ---

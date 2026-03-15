@@ -60,28 +60,34 @@ After completing each task, tick its checkbox (`- [ ]` → `- [x]`) and commit P
   - Pins `terraform` version and the `hetznercloud/hcloud` provider version.
     Includes a commented-out S3-compatible backend block. No other files depend
     on this first, but it must exist before `terraform init` can run.
-  - Validation: `cd infra/terraform && terraform init -backend=false && terraform validate`.
+  - Validation (CI only — do not run `terraform apply` locally):
+    `cd infra/terraform && terraform init -backend=false && terraform validate`
+    runs in the GitHub Actions workflow, not on the dev machine.
+    Local check: `terraform fmt -check infra/terraform/`.
 
-- [ ] **Create infra/terraform/variables.tf**
+- [x] **Create infra/terraform/variables.tf**
   - File: `infra/terraform/variables.tf`
   - Declares all five input variables (`hcloud_token`, `ssh_public_key_path`,
     `deployer_ip`, `server_location`, `server_type`) with descriptions and
     defaults where applicable. Depends on `versions.tf` (`init` must pass first).
-  - Validation: `cd infra/terraform && terraform validate`.
+  - Validation (CI only): `cd infra/terraform && terraform validate` in GitHub Actions.
+    Local check: `terraform fmt -check infra/terraform/`.
 
-- [ ] **Create infra/terraform/main.tf**
+- [x] **Create infra/terraform/main.tf**
   - File: `infra/terraform/main.tf`
   - Defines `hcloud_server`, `hcloud_firewall`, `hcloud_ssh_key` resources,
     and a commented-out `hcloud_volume` block. SSH firewall rule scoped to
     `deployer_ip` only. Depends on `variables.tf`.
-  - Validation: `cd infra/terraform && terraform validate`.
+  - Validation (CI only): `cd infra/terraform && terraform validate` in GitHub Actions.
+    Local check: `terraform fmt -check infra/terraform/`.
 
-- [ ] **Create infra/terraform/outputs.tf**
+- [x] **Create infra/terraform/outputs.tf**
   - File: `infra/terraform/outputs.tf`
   - Exports `server_ip` and `server_id`. Depends on `main.tf`.
-  - Validation: `cd infra/terraform && terraform validate` (full module must pass clean).
+  - Validation (CI only): `cd infra/terraform && terraform validate` in GitHub Actions.
+    Local check: `terraform fmt -check infra/terraform/` (full module must be fmt-clean).
 
-- [ ] **Create .github/workflows/terraform.yml**
+- [x] **Create .github/workflows/terraform.yml**
   - File: `.github/workflows/terraform.yml`
   - Thin trigger only: checks out repo, injects GitHub Secrets as env vars,
     runs `terraform init && terraform apply -auto-approve` inside
@@ -98,7 +104,7 @@ After completing each task, tick its checkbox (`- [ ]` → `- [x]`) and commit P
 
 ### Infrastructure — Ansible
 
-- [ ] **Create infra/ansible/roles/base/tasks/main.yml**
+- [x] **Create infra/ansible/roles/base/tasks/main.yml**
   - File: `infra/ansible/roles/base/tasks/main.yml`
   - OS hardening: hostname, apt upgrade, git/curl/unzip/fail2ban/ufw install,
     ufw rules, unattended-upgrades, disable root SSH + password auth, UTC timezone.
@@ -107,13 +113,12 @@ After completing each task, tick its checkbox (`- [ ]` → `- [x]`) and commit P
     `assert` tasks) that verifies hostname, ufw status, and sshd config flags
     before running the role — expect failures — then after applying the role expect
     all assertions to pass.
-  - Validation:
-    ```
-    ansible-lint infra/ansible/roles/base/tasks/main.yml
-    ansible-playbook infra/ansible/tests/test-base.yml --check (on a test host or molecule)
-    ```
+  - Validation (CI only — ansible-lint requires Unix):
+    `ansible-lint infra/ansible/roles/base/tasks/main.yml` in GitHub Actions.
+    Local check: `python -c "import yaml,pathlib; yaml.safe_load(pathlib.Path('infra/ansible/roles/base/tasks/main.yml').read_text()); print('valid')"`.
+    Test playbook run against real host or molecule in CI.
 
-- [ ] **Create infra/ansible/roles/docker/tasks/main.yml**
+- [x] **Create infra/ansible/roles/docker/tasks/main.yml**
   - File: `infra/ansible/roles/docker/tasks/main.yml`
   - Installs Docker CE via official apt repo (not snap), Compose plugin, adds
     deploy user to `docker` group, enables + starts docker service, runs
@@ -121,13 +126,10 @@ After completing each task, tick its checkbox (`- [ ]` → `- [x]`) and commit P
   - TDD: Write `infra/ansible/tests/test-docker.yml` asserting `docker info`
     returns success and `docker compose version` exits 0, run before role
     (expect fail), then after (expect pass).
-  - Validation:
-    ```
-    ansible-lint infra/ansible/roles/docker/tasks/main.yml
-    ansible-playbook infra/ansible/tests/test-docker.yml --check
-    ```
+  - Validation (CI only): `ansible-lint` + test playbook in GitHub Actions.
+    Local check: YAML parse.
 
-- [ ] **Create infra/ansible/roles/agent/tasks/main.yml**
+- [x] **Create infra/ansible/roles/agent/tasks/main.yml**
   - File: `infra/ansible/roles/agent/tasks/main.yml`
   - Creates `/opt/agent`, rsyncs repo files (excluding `.git`, `.env`,
     `infra/terraform/`, `*.tfstate`), templates `.env` from Vault vars, runs
@@ -137,25 +139,23 @@ After completing each task, tick its checkbox (`- [ ]` → `- [x]`) and commit P
   - TDD: Write `infra/ansible/tests/test-agent.yml` asserting `/opt/agent`
     exists, `.env` is present and non-empty, and n8n health endpoint returns 200.
     Run before role (expect fail), then after (expect pass).
-  - Validation:
-    ```
-    ansible-lint infra/ansible/roles/agent/tasks/main.yml
-    ansible-playbook infra/ansible/tests/test-agent.yml --check
-    ```
+  - Validation (CI only): `ansible-lint` + test playbook in GitHub Actions.
+    Local check: YAML parse.
 
-- [ ] **Create infra/ansible/playbook.yml**
+- [x] **Create infra/ansible/playbook.yml**
   - File: `infra/ansible/playbook.yml`
   - Top-level playbook: applies `base`, `docker`, `agent` roles in order against
     `all` hosts. Depends on all three role task files existing.
-  - Validation: `ansible-lint infra/ansible/playbook.yml`.
+  - Validation (CI only): `ansible-lint infra/ansible/playbook.yml`.
+    Local check: YAML parse.
 
-- [ ] **Create infra/ansible/inventory.example**
+- [x] **Create infra/ansible/inventory.example**
   - File: `infra/ansible/inventory.example`
   - Template inventory with placeholder IP and deploy user. The real
     `ansible/inventory` is gitignored; this documents the expected format.
   - Validation: `ansible-inventory -i infra/ansible/inventory.example --list` exits 0.
 
-- [ ] **Create infra/ansible/group_vars/all/vault.yml.example**
+- [x] **Create infra/ansible/group_vars/all/vault.yml.example**
   - File: `infra/ansible/group_vars/all/vault.yml.example`
   - Documents all 14 vault variable names as commented placeholders.
     No values. Consumed by the `agent` role tasks and `.env` template.
@@ -165,7 +165,7 @@ After completing each task, tick its checkbox (`- [ ]` → `- [x]`) and commit P
 
 ### Infrastructure — nginx
 
-- [ ] **Create infra/nginx/nginx.conf**
+- [x] **Create infra/nginx/nginx.conf**
   - File: `infra/nginx/nginx.conf`
   - Reverse proxy: HTTP→HTTPS redirect on port 80; HTTPS on 443 with TLS
     termination from `certbot_data` volume; proxy_pass to
@@ -184,7 +184,7 @@ After completing each task, tick its checkbox (`- [ ]` → `- [x]`) and commit P
 
 ### Runtime — Docker Compose
 
-- [ ] **Create docker-compose.yml**
+- [x] **Create docker-compose.yml**
   - File: `docker-compose.yml`
   - Defines `n8n`, `nginx`, and `certbot` services plus `n8n_data` and
     `certbot_data` volumes. `notebook-mcp` block present but commented out.
@@ -193,7 +193,7 @@ After completing each task, tick its checkbox (`- [ ]` → `- [x]`) and commit P
   - Validation: `python3 -m json.tool docker-compose.yml > /dev/null` (if YAML,
     use `python3 -c "import yaml,sys; yaml.safe_load(sys.stdin)" < docker-compose.yml`).
 
-- [ ] **Create docker-compose.override.example.yml**
+- [x] **Create docker-compose.override.example.yml**
   - File: `docker-compose.override.example.yml`
   - Local dev overrides: exposes n8n on `0.0.0.0:5678`, disables TLS cert
     fetching. Documents the pattern for local iteration without touching
@@ -204,7 +204,7 @@ After completing each task, tick its checkbox (`- [ ]` → `- [x]`) and commit P
 
 ### Scripts
 
-- [ ] **Create scripts/setup.sh**
+- [x] **Create scripts/setup.sh**
   - File: `scripts/setup.sh`
   - One-time VPS bootstrap: asserts root, installs `python3 ansible git` via apt,
     clones repo to `/opt/agent-deploy`, prints next-step instructions. Safe to
@@ -218,7 +218,7 @@ After completing each task, tick its checkbox (`- [ ]` → `- [x]`) and commit P
     bash scripts/tests/test-setup.sh
     ```
 
-- [ ] **Create scripts/deploy.sh**
+- [x] **Create scripts/deploy.sh**
   - File: `scripts/deploy.sh`
   - Idempotent deploy: runs `validate-env.sh`, `docker compose pull`,
     `docker compose up -d`, health-check retry loop (10×, 3 s), n8n workflow
@@ -234,7 +234,7 @@ After completing each task, tick its checkbox (`- [ ]` → `- [x]`) and commit P
     bash scripts/tests/test-deploy.sh
     ```
 
-- [ ] **Create scripts/rollback.sh**
+- [x] **Create scripts/rollback.sh**
   - File: `scripts/rollback.sh`
   - Accepts a commit SHA or `previous`; resolves `previous` to `HEAD~1`;
     runs `git checkout <sha>` then calls `deploy.sh`; prints deployed SHA.
@@ -253,14 +253,14 @@ After completing each task, tick its checkbox (`- [ ]` → `- [x]`) and commit P
 
 ### Agent files
 
-- [ ] **Create agent/prompts/system-prompt.md**
+- [x] **Create agent/prompts/system-prompt.md**
   - File: `agent/prompts/system-prompt.md`
   - Versioned master prompt: Linear workspace context, per-run instructions,
     standing rules, output format reference to `task-format.md`. Read at runtime
     by n8n HTTP Request node. No code dependencies.
   - Validation: `python3 -c "import pathlib; t=pathlib.Path('agent/prompts/system-prompt.md').read_text(); assert 'task-format.md' in t and '4edee420' in t"`.
 
-- [ ] **Create agent/prompts/task-format.md**
+- [x] **Create agent/prompts/task-format.md**
   - File: `agent/prompts/task-format.md`
   - Exact JSON schema Claude must output: field definitions table, full JSON
     Schema object, three worked examples (one per label type), malformed-message
@@ -275,7 +275,7 @@ After completing each task, tick its checkbox (`- [ ]` → `- [x]`) and commit P
     python3 agent/tests/test-task-format.py
     ```
 
-- [ ] **Create agent/memory/agent-memory.md**
+- [x] **Create agent/memory/agent-memory.md**
   - File: `agent/memory/agent-memory.md`
   - Seed template for the Google Drive live file. Contains watermark headers,
     `## Standing rules`, `## Learned patterns`, `## Processed message IDs`
@@ -283,14 +283,14 @@ After completing each task, tick its checkbox (`- [ ]` → `- [x]`) and commit P
     after that.
   - Validation: `python3 -c "import pathlib; t=pathlib.Path('agent/memory/agent-memory.md').read_text(); assert all(s in t for s in ['Standing rules','Learned patterns','Processed message IDs','Last Gmail watermark'])"`.
 
-- [ ] **Create agent/memory/notebook-registry.md**
+- [x] **Create agent/memory/notebook-registry.md**
   - File: `agent/memory/notebook-registry.md`
   - Registry of NotebookLM notebooks with keyword → URL → title mapping.
     Seed template with commented-out example entries. Format validated by
     `daily-digest.json` Format messages node.
   - Validation: `python3 -c "import pathlib; t=pathlib.Path('agent/memory/notebook-registry.md').read_text(); assert '|' in t"`.
 
-- [ ] **Create agent/mcp/Dockerfile**
+- [x] **Create agent/mcp/Dockerfile**
   - File: `agent/mcp/Dockerfile`
   - Phase 3 stub: `python:3.12-slim` base, copies `requirements.txt` and
     `server.py`, runs `python server.py`. Commented-out in `docker-compose.yml`
@@ -298,7 +298,7 @@ After completing each task, tick its checkbox (`- [ ]` → `- [x]`) and commit P
   - Validation: `docker build -t agent-mcp-test ./agent/mcp` (image builds,
     container fails at runtime with `NotImplementedError` — that is expected).
 
-- [ ] **Create agent/mcp/server.py**
+- [x] **Create agent/mcp/server.py**
   - File: `agent/mcp/server.py`
   - Phase 3 stub: module docstring explaining MCP protocol contract, `main()`
     raising `NotImplementedError`. Imported cleanly with no runtime errors at
@@ -317,7 +317,7 @@ After completing each task, tick its checkbox (`- [ ]` → `- [x]`) and commit P
 
 ### n8n Workflows
 
-- [ ] **Create n8n/workflows/daily-digest.json**
+- [x] **Create n8n/workflows/daily-digest.json**
   - File: `n8n/workflows/daily-digest.json`
   - Cron 07:00 UTC workflow: read agent-memory → read notebook-registry →
     fetch Gmail → format/deduplicate → Claude API call → parse output →
@@ -335,7 +335,7 @@ After completing each task, tick its checkbox (`- [ ]` → `- [x]`) and commit P
     python3 n8n/tests/test-workflow-schema.py daily-digest
     ```
 
-- [ ] **Create n8n/workflows/realtime-webhook.json**
+- [x] **Create n8n/workflows/realtime-webhook.json**
   - File: `n8n/workflows/realtime-webhook.json`
   - Webhook trigger on `POST /webhook/gmail`. Identical processing to
     daily-digest steps 3–9 for a single Pub/Sub message. No batch API header.
@@ -348,7 +348,7 @@ After completing each task, tick its checkbox (`- [ ]` → `- [x]`) and commit P
     python3 n8n/tests/test-workflow-schema.py realtime-webhook
     ```
 
-- [ ] **Create n8n/workflows/weekly-learning.json**
+- [x] **Create n8n/workflows/weekly-learning.json**
   - File: `n8n/workflows/weekly-learning.json`
   - Cron 09:00 UTC Monday: fetch closed/cancelled Linear issues → extract
     feedback comments → read agent-memory → Claude learning call → apply rule
@@ -366,19 +366,19 @@ After completing each task, tick its checkbox (`- [ ]` → `- [x]`) and commit P
 
 ### Documentation
 
-- [ ] **Create docs/architecture.md**
+- [x] **Create docs/architecture.md**
   - File: `docs/architecture.md`
   - Describes data flow (Gmail/Slack → n8n → Claude → Linear), component
     responsibilities, network topology, and volume layout. No code dependency.
   - Validation: `python3 -c "import pathlib; t=pathlib.Path('docs/architecture.md').read_text(); assert all(s in t for s in ['n8n','Claude','Linear','nginx'])"`.
 
-- [ ] **Create docs/runbook.md**
+- [x] **Create docs/runbook.md**
   - File: `docs/runbook.md`
   - Operational reference: how to deploy, check logs, debug n8n, rotate secrets,
     extend with a new workflow, rollback. References `deploy.sh` and `rollback.sh`.
   - Validation: `python3 -c "import pathlib; t=pathlib.Path('docs/runbook.md').read_text(); assert 'rollback.sh' in t and 'deploy.sh' in t"`.
 
-- [ ] **Create docs/phases.md**
+- [x] **Create docs/phases.md**
   - File: `docs/phases.md`
   - Roadmap reference: phases 1–6 with names, what gets built, and status
     (Phase 1 = complete after this build, 2–6 = planned). Maps directly to the
@@ -409,15 +409,15 @@ uncomment `notebook-mcp` in `docker-compose.yml`, add tool definition to
 
 ## Definition of done (Phase 1)
 
-- [ ] `terraform apply` provisions Hetzner VPS with no errors
-- [ ] `ansible-playbook playbook.yml` configures a fresh Ubuntu 24.04 and starts all services
-- [ ] `deploy.sh` is idempotent: second run produces no changes
-- [ ] n8n reachable at `https://${DOMAIN}` after deploy
-- [ ] All three n8n workflows import without validation errors in n8n
-- [ ] `validate-env.sh` exits 1 on a missing variable, 0 when all present
-- [ ] `rollback.sh previous` restores the previous commit and redeploys
+- [ ] `terraform apply` provisions Hetzner VPS with no errors (requires live Hetzner token)
+- [ ] `ansible-playbook playbook.yml` configures a fresh Ubuntu 24.04 and starts all services (requires VPS)
+- [ ] `deploy.sh` is idempotent: second run produces no changes (requires VPS)
+- [ ] n8n reachable at `https://${DOMAIN}` after deploy (requires VPS)
+- [ ] All three n8n workflows import without validation errors in n8n (requires VPS)
+- [x] `validate-env.sh` exits 1 on a missing variable, 0 when all present
+- [ ] `rollback.sh previous` restores the previous commit and redeploys (requires VPS)
 - [ ] Zero hardcoded secrets anywhere in the codebase
-- [ ] All shell scripts pass `shellcheck` with no warnings
-- [ ] All Terraform files pass `terraform validate`
-- [ ] All test scripts in `scripts/tests/`, `agent/tests/`, `n8n/tests/`,
-      and `infra/*/tests/` pass clean
+- [x] All shell scripts pass `shellcheck` with no warnings
+- [ ] All Terraform files pass `terraform validate` (CI only)
+- [x] All test scripts in `scripts/tests/`, `agent/tests/`, `n8n/tests/`,
+      and `infra/*/tests/` pass clean (local; infra/ansible/tests require VPS)

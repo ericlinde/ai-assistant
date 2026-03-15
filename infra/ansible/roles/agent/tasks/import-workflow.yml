@@ -1,0 +1,44 @@
+---
+- name: Read workflow JSON
+  ansible.builtin.slurp:
+    src: "{{ workflow_file }}"
+  register: workflow_raw
+
+- name: Parse workflow JSON
+  ansible.builtin.set_fact:
+    workflow_data: "{{ workflow_raw.content | b64decode | from_json }}"
+
+- name: Check if workflow already exists
+  ansible.builtin.set_fact:
+    existing_workflow: >-
+      {{
+        existing_workflows.json.data
+        | selectattr('name', 'equalto', workflow_data.name)
+        | list
+        | first
+        | default(None)
+      }}
+
+- name: Create workflow (new)
+  ansible.builtin.uri:
+    url: http://localhost:5678/api/v1/workflows
+    method: POST
+    headers:
+      X-N8N-API-KEY: "{{ vault_n8n_api_key }}"
+      Content-Type: application/json
+    body: "{{ workflow_raw.content | b64decode }}"
+    body_format: json
+    status_code: 200
+  when: existing_workflow is none
+
+- name: Update workflow (existing)
+  ansible.builtin.uri:
+    url: "http://localhost:5678/api/v1/workflows/{{ existing_workflow.id }}"
+    method: PUT
+    headers:
+      X-N8N-API-KEY: "{{ vault_n8n_api_key }}"
+      Content-Type: application/json
+    body: "{{ workflow_raw.content | b64decode }}"
+    body_format: json
+    status_code: 200
+  when: existing_workflow is not none

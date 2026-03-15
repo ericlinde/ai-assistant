@@ -1,5 +1,6 @@
 # Secrets
 .env
+.token
 *.tfvars
 ansible/group_vars/all/vault.yml
 
@@ -19,3 +20,7 @@ __pycache__/
 *.pyc
 *.pyo
 node_modules/
+
+# IDE / tooling
+.idea/
+.claude/

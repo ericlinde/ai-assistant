@@ -8,15 +8,14 @@ terraform {
     }
   }
 
-  # Uncomment to enable remote state via S3-compatible backend (e.g. Hetzner Object Storage)
-  # backend "s3" {
-  #   endpoint                    = "https://fsn1.your-objectstorage.com"
-  #   bucket                      = "agent-tfstate"
-  #   key                         = "terraform.tfstate"
-  #   region                      = "us-east-1"   # required by S3 protocol, value ignored
-  #   skip_credentials_validation = true
-  #   skip_metadata_api_check     = true
-  #   skip_region_validation      = true
-  #   force_path_style            = true
-  # }
+  backend "s3" {
+    endpoint                    = "https://13f543ea961e0c42234d00af783c18f9.r2.cloudflarestorage.com"
+    bucket                      = "agent-terraform-state"
+    key                         = "terraform.tfstate"
+    region                      = "auto"
+    skip_credentials_validation = true
+    skip_metadata_api_check     = true
+    skip_region_validation      = true
+    force_path_style            = true
+  }
 }

@@ -7,17 +7,42 @@ PASS=0
 FAIL=0
 
 TMP_DIR="$(mktemp -d)"
-trap 'rm -rf "$TMP_DIR"' EXIT
+STUB_BIN="$(mktemp -d)"
+NO_JSON_DIR="$(mktemp -d)"
+PYTHON_DIR="$(dirname "$(command -v python)")"
+trap 'rm -rf "$TMP_DIR" "$STUB_BIN" "$NO_JSON_DIR"' EXIT
 
+# --- Stub .env.example: 2 required secrets, 1 hardcoded value ---
 cat > "${TMP_DIR}/.env.example" <<'EOF'
-REQUIRED_VAR_ONE=
-REQUIRED_VAR_TWO=
-REQUIRED_VAR_THREE=
+REQ_VAR_ONE=
+REQ_VAR_TWO=
+HARDCODED_VAR=some-fixed-value
 EOF
+
+# --- Stub .infisical.json ---
+cat > "${TMP_DIR}/.infisical.json" <<'EOF'
+{"workspaceId":"test-workspace","defaultEnvironment":"prod"}
+EOF
+
+# --- Stub .env.example for no-json-dir test (no .infisical.json) ---
+cp "${TMP_DIR}/.env.example" "${NO_JSON_DIR}/.env.example"
+
+# --- Infisical CLI stub: outputs JSON controlled by STUB_INFISICAL_JSON env var ---
+cat > "${STUB_BIN}/infisical" <<'EOF'
+#!/usr/bin/env bash
+if [ "${1:-}" = "secrets" ]; then
+  if [ -n "${STUB_INFISICAL_JSON:-}" ]; then
+    echo "${STUB_INFISICAL_JSON}"
+  else
+    echo '[{"secretKey":"REQ_VAR_ONE","secretValue":"v1"},{"secretKey":"REQ_VAR_TWO","secretValue":"v2"}]'
+  fi
+fi
+EOF
+chmod +x "${STUB_BIN}/infisical"
 
 run_test() {
   local description="$1"
-  local expected="$2"  # "pass" or "fail"
+  local expected="$2"
   shift 2
   local result
   if "$@" > /dev/null 2>&1; then
@@ -27,27 +52,51 @@ run_test() {
   fi
   if [ "${result}" = "${expected}" ]; then
     echo "PASS: ${description}"
-    PASS=$((PASS+1))
+    PASS=$((PASS + 1))
   else
     echo "FAIL: ${description} (expected ${expected}, got ${result})"
-    FAIL=$((FAIL+1))
+    FAIL=$((FAIL + 1))
   fi
 }
 
-# Test 1: missing variable exits 1
-run_test "exits 1 when variable missing" "fail" \
-  env REQUIRED_VAR_ONE=set REQUIRED_VAR_TWO=set \
-  bash "${VALIDATE}" "${TMP_DIR}/.env.example"
+# Test 1: infisical CLI not found → exit 1
+run_test "exits 1 when infisical CLI not found" "fail" \
+  env INFISICAL_TOKEN=test-token \
+  REPO_ROOT="${TMP_DIR}" \
+  PATH="${PYTHON_DIR}:/usr/bin:/bin" \
+  bash "${VALIDATE}"
 
-# Test 2: all variables set exits 0
-run_test "exits 0 when all variables set" "pass" \
-  env REQUIRED_VAR_ONE=set REQUIRED_VAR_TWO=set REQUIRED_VAR_THREE=set \
-  bash "${VALIDATE}" "${TMP_DIR}/.env.example"
+# Test 2: INFISICAL_TOKEN not set, no .token file → exit 1
+run_test "exits 1 when INFISICAL_TOKEN not set" "fail" \
+  env INFISICAL_TOKEN="" \
+  REPO_ROOT="${TMP_DIR}" \
+  PATH="${STUB_BIN}:${PYTHON_DIR}:/usr/bin:/bin" \
+  bash "${VALIDATE}"
 
-# Test 3: empty variable exits 1
-run_test "exits 1 when variable empty" "fail" \
-  env REQUIRED_VAR_ONE=set REQUIRED_VAR_TWO=set REQUIRED_VAR_THREE= \
-  bash "${VALIDATE}" "${TMP_DIR}/.env.example"
+# Test 3: .infisical.json missing → exit 1
+run_test "exits 1 when .infisical.json missing" "fail" \
+  env INFISICAL_TOKEN=test-token \
+  REPO_ROOT="${NO_JSON_DIR}" \
+  PATH="${STUB_BIN}:${PYTHON_DIR}:/usr/bin:/bin" \
+  bash "${VALIDATE}"
+
+# Test 4: all secrets present → exit 0
+ALL_JSON='[{"secretKey":"REQ_VAR_ONE","secretValue":"v1"},{"secretKey":"REQ_VAR_TWO","secretValue":"v2"}]'
+run_test "exits 0 when all secrets present in Infisical" "pass" \
+  env INFISICAL_TOKEN=test-token \
+  REPO_ROOT="${TMP_DIR}" \
+  PATH="${STUB_BIN}:${PYTHON_DIR}:/usr/bin:/bin" \
+  STUB_INFISICAL_JSON="${ALL_JSON}" \
+  bash "${VALIDATE}"
+
+# Test 5: missing secret → exit 1
+MISSING_JSON='[{"secretKey":"REQ_VAR_ONE","secretValue":"v1"}]'
+run_test "exits 1 when a required secret is missing from Infisical" "fail" \
+  env INFISICAL_TOKEN=test-token \
+  REPO_ROOT="${TMP_DIR}" \
+  PATH="${STUB_BIN}:${PYTHON_DIR}:/usr/bin:/bin" \
+  STUB_INFISICAL_JSON="${MISSING_JSON}" \
+  bash "${VALIDATE}"
 
 echo ""
 echo "Results: ${PASS} passed, ${FAIL} failed"

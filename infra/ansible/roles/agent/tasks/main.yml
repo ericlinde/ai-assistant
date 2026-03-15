@@ -1,0 +1,50 @@
+---
+- name: Create /opt/agent directory
+  ansible.builtin.file:
+    path: /opt/agent
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0750"
+
+- name: Sync repo files to /opt/agent
+  ansible.posix.synchronize:
+    src: "{{ playbook_dir }}/../../"
+    dest: /opt/agent/
+    delete: true
+    rsync_opts:
+      - "--exclude=.git"
+      - "--exclude=.env"
+      - "--exclude=.token"
+      - "--exclude=infra/terraform/"
+      - "--exclude=*.tfstate"
+      - "--exclude=*.tfstate.backup"
+
+- name: Install Infisical CLI apt repository
+  ansible.builtin.shell: |
+    curl -1sLf 'https://dl.cloudsmith.io/public/infisical/infisical-cli/setup.deb.sh' | bash
+  args:
+    creates: /etc/apt/sources.list.d/infisical-infisical-cli.list
+
+- name: Install Infisical CLI
+  ansible.builtin.apt:
+    name: infisical
+    state: present
+    update_cache: true
+
+- name: Write Infisical machine identity token to /opt/agent/.token
+  ansible.builtin.copy:
+    content: "{{ vault_infisical_token }}"
+    dest: /opt/agent/.token
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0600"
+
+- name: Run deploy.sh (validate, pull, start services, import workflows)
+  ansible.builtin.command: bash /opt/agent/scripts/deploy.sh
+  args:
+    chdir: /opt/agent
+  changed_when: true
+  environment:
+    PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    INFISICAL_TOKEN: "{{ vault_infisical_token }}"
