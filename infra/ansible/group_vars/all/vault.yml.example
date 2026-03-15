@@ -1,8 +1,16 @@
-# Copy this file to vault.yml, fill in real values, then encrypt:
-#   ansible-vault encrypt infra/ansible/group_vars/all/vault.yml
+# Create vault.yml using ansible-vault create — this opens your editor in an encrypted
+# context so plaintext values are never written to disk unencrypted:
+#
+#   ansible-vault create infra/ansible/group_vars/all/vault.yml
+#
+# Copy the variable names below (without the leading #) into the editor, fill in values,
+# save and close. The file is encrypted immediately on save.
+#
+# To edit later:
+#   ansible-vault edit infra/ansible/group_vars/all/vault.yml
 #
 # Commit the encrypted vault.yml — GitHub Actions decrypts it using ANSIBLE_VAULT_PASSWORD.
-# NEVER commit vault.yml before encrypting it.
+# NEVER use a plain text editor to write secrets directly into the repo.
 #
 # Ansible Vault scope: secrets needed to reach and configure the server.
 # Application runtime secrets live in Infisical Cloud (see .env.example).

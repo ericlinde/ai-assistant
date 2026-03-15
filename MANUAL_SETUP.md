@@ -227,27 +227,40 @@ Both credentials come from the same Google Cloud project.
 
 ## 12. Ansible Vault
 
-1. Copy the example file:
-   ```bash
-   cp infra/ansible/group_vars/all/vault.yml.example infra/ansible/group_vars/all/vault.yml
-   ```
-2. Edit `vault.yml` and fill in real values (remove the `#` comment markers).
-   `vault_ssh_private_key` is the full private key content — paste it as a multiline string:
-   ```yaml
-   vault_ssh_private_key: |
-     -----BEGIN OPENSSH PRIVATE KEY-----
-     <paste contents of ~/.ssh/id_ed25519_agent here>
-     -----END OPENSSH PRIVATE KEY-----
-   vault_infisical_token: "<from Infisical step 11>"
-   vault_domain: "agent.yourdomain.com"
-   vault_admin_email: "you@yourdomain.com"
-   ```
-3. Encrypt it:
-   ```bash
-   ansible-vault encrypt infra/ansible/group_vars/all/vault.yml
-   ```
-   Choose a strong vault password, store it in your password manager, and add it
-   to GitHub Secrets as `ANSIBLE_VAULT_PASSWORD` (step 5).
+Use `ansible-vault create` — this opens your editor in an encrypted context so
+plaintext values are **never written to disk unencrypted**. Do not use a plain
+text editor to write secrets directly into the repo.
+
+```bash
+ansible-vault create infra/ansible/group_vars/all/vault.yml
+```
+
+You will be prompted for a vault password — choose a strong one and store it in
+your password manager. Fill in the following in your editor:
+
+```yaml
+vault_ssh_private_key: |
+  -----BEGIN OPENSSH PRIVATE KEY-----
+  <paste contents of ~/.ssh/id_ed25519_agent here>
+  -----END OPENSSH PRIVATE KEY-----
+vault_infisical_token: "<from Infisical step 11>"
+vault_domain: "agent.yourdomain.com"
+vault_admin_email: "you@yourdomain.com"
+```
+
+Save and close — the file is encrypted immediately on save. To edit later:
+```bash
+ansible-vault edit infra/ansible/group_vars/all/vault.yml
+```
+
+Commit the encrypted file — it is safe and required for CI:
+```bash
+git add infra/ansible/group_vars/all/vault.yml
+git commit -m "Add encrypted Ansible Vault"
+git push
+```
+
+Then add the vault password to GitHub Secrets as `ANSIBLE_VAULT_PASSWORD` (step 5).
 
 ---
 
