@@ -26,6 +26,7 @@
 #   <contents of ~/.ssh/id_ed25519_agent>
 #   -----END OPENSSH PRIVATE KEY-----
 
-# vault_infisical_token: ""   # Infisical machine identity token (written to /opt/agent/.token)
-# vault_domain: ""            # e.g. agent.ejlinde.com  (also set in Infisical as DOMAIN)
-# vault_admin_email: ""       # for Let's Encrypt certificate (also set in Infisical as ADMIN_EMAIL)
+# vault_infisical_client_id: ""      # Infisical Universal Auth Client ID (UUID)
+# vault_infisical_client_secret: ""  # Infisical Universal Auth Client Secret
+# vault_domain: ""                   # e.g. agent.ejlinde.com  (also set in Infisical as DOMAIN)
+# vault_admin_email: ""              # for Let's Encrypt certificate (also set in Infisical as ADMIN_EMAIL)

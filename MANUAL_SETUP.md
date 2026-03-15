@@ -207,7 +207,9 @@ Both credentials come from the same Google Cloud project.
 3. Create a machine identity for runtime secret access:
    - Go to your project → **Access Control → Machine Identities → + Add Machine Identity to Project**
    - Create a new identity named `agent-runtime` with role **Viewer** (read-only is all the runtime agent needs)
-   - Copy the token → Ansible Vault `vault_infisical_token`
+   - Select **Universal Auth**, then note down:
+     - **Client ID** → Ansible Vault `vault_infisical_client_id`
+     - **Client Secret** → Ansible Vault `vault_infisical_client_secret`
 4. Add all secrets listed in the Infisical column of the overview table above.
    Fastest way via CLI (run once):
    ```bash
@@ -258,7 +260,8 @@ vault_ssh_private_key: |
   -----BEGIN OPENSSH PRIVATE KEY-----
   <paste contents of ~/.ssh/id_ed25519_agent here>
   -----END OPENSSH PRIVATE KEY-----
-vault_infisical_token: "<from Infisical step 11>"
+vault_infisical_client_id: "<Universal Auth Client ID (UUID) from Infisical step 11>"
+vault_infisical_client_secret: "<Universal Auth Client Secret from Infisical step 11>"
 vault_domain: "agent.yourdomain.com"
 vault_admin_email: "you@yourdomain.com"
 ```
