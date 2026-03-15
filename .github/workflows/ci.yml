@@ -1,6 +1,6 @@
 # Runs on every pull request and push to main.
-# Validates shell scripts, Python tests, and Terraform formatting.
 # No secrets required — all checks are local/static.
+# To run the same checks locally: bash scripts/tests/run-all.sh
 name: CI
 
 on:
@@ -17,47 +17,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install shellcheck
-        run: sudo apt-get install -y shellcheck
-
-      - name: shellcheck — all shell scripts
+      - name: Install dependencies
         run: |
-          shellcheck scripts/validate-env.sh
-          shellcheck scripts/deploy.sh
-          shellcheck scripts/setup.sh
-          shellcheck scripts/rollback.sh
-          shellcheck scripts/tests/test-validate-env.sh
-          shellcheck scripts/tests/test-deploy.sh
-          shellcheck scripts/tests/test-setup.sh
-          shellcheck scripts/tests/test-rollback.sh
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install Python dependencies
-        run: pip install jsonschema
-
-      - name: test-validate-env.sh
-        run: bash scripts/tests/test-validate-env.sh
-
-      - name: test-task-format.py
-        run: python agent/tests/test-task-format.py
-
-      - name: test-server-stub.py
-        run: python agent/tests/test-server-stub.py
-
-      - name: test-workflow-schema.py — all three workflows
-        run: |
-          python n8n/tests/test-workflow-schema.py daily-digest
-          python n8n/tests/test-workflow-schema.py realtime-webhook
-          python n8n/tests/test-workflow-schema.py weekly-learning
+          sudo apt-get install -y shellcheck
+          pip install jsonschema
 
       - name: Setup OpenTofu
         uses: opentofu/setup-opentofu@v1
         with:
           tofu_version: "1.9.0"
 
-      - name: terraform fmt -check
-        run: tofu fmt -check infra/terraform/
+      - name: Run all checks
+        run: bash scripts/tests/run-all.sh
