@@ -1,11 +1,13 @@
-# Required GitHub Secrets for this workflow:
-#   HCLOUD_TOKEN         — Hetzner Cloud API token (Terraform only)
+# Required GitHub Secrets:
+#   HCLOUD_TOKEN         — Hetzner Cloud API token
+#   R2_SECRET_ACCESS_KEY — Cloudflare R2 secret access key
+#
+# Required GitHub Variables:
 #   SSH_PUBLIC_KEY       — public key written to the VPS for the deploy user
 #   DEPLOYER_IP          — your IP, used to scope SSH firewall rule
-#   SERVER_LOCATION      — Hetzner datacenter (e.g. nbg1)
-#   SERVER_TYPE          — server size (e.g. cx22)
-#   R2_ACCESS_KEY_ID     — Cloudflare R2 access key ID (67900688154fce7908ac7e41326c10ac)
-#   R2_SECRET_ACCESS_KEY — Cloudflare R2 secret access key
+#   SERVER_LOCATION      — Hetzner datacenter (e.g. hel1)
+#   SERVER_TYPE          — server size (e.g. cx32)
+#   R2_ACCESS_KEY_ID     — Cloudflare R2 access key ID
 name: Terraform
 
 on:
@@ -34,13 +36,13 @@ jobs:
 
       - name: Write SSH public key to temp file
         run: |
-          echo "${{ secrets.SSH_PUBLIC_KEY }}" > /tmp/deployer.pub
+          echo "${{ vars.SSH_PUBLIC_KEY }}" > /tmp/deployer.pub
 
       - name: Terraform Init
         run: tofu init
         env:
           TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_ACCESS_KEY_ID: ${{ vars.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
 
       - name: Terraform Validate
@@ -51,8 +53,8 @@ jobs:
         env:
           TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
           TF_VAR_ssh_public_key_path: /tmp/deployer.pub
-          TF_VAR_deployer_ip: ${{ secrets.DEPLOYER_IP }}
-          TF_VAR_server_location: ${{ secrets.SERVER_LOCATION }}
-          TF_VAR_server_type: ${{ secrets.SERVER_TYPE }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          TF_VAR_deployer_ip: ${{ vars.DEPLOYER_IP }}
+          TF_VAR_server_location: ${{ vars.SERVER_LOCATION }}
+          TF_VAR_server_type: ${{ vars.SERVER_TYPE }}
+          AWS_ACCESS_KEY_ID: ${{ vars.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}

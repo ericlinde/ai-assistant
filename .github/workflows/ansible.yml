@@ -1,7 +1,9 @@
 # Required GitHub Secrets:
-#   ANSIBLE_VAULT_PASSWORD — decrypts vault.yml to extract SSH key + Infisical token
-#   R2_ACCESS_KEY_ID       — Cloudflare R2 backend (needed to read tofu output)
+#   ANSIBLE_VAULT_PASSWORD — decrypts vault.yml to extract SSH key + Infisical credentials
 #   R2_SECRET_ACCESS_KEY   — Cloudflare R2 backend
+#
+# Required GitHub Variables:
+#   R2_ACCESS_KEY_ID       — Cloudflare R2 backend (needed to read tofu output)
 #
 # Server IP is read directly from Terraform state — no inventory file needed.
 #
@@ -33,7 +35,7 @@ jobs:
         working-directory: infra/terraform
         run: tofu init
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_ACCESS_KEY_ID: ${{ vars.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
 
       - name: Get server IP from Terraform state
@@ -41,7 +43,7 @@ jobs:
         working-directory: infra/terraform
         run: echo "ip=$(tofu output -raw server_ip)" >> "$GITHUB_OUTPUT"
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_ACCESS_KEY_ID: ${{ vars.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
 
       - name: Install Ansible
