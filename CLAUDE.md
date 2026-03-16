@@ -87,6 +87,14 @@ Single VPS, Docker Compose runtime, n8n workflows, plain-text memory file.
 
 ---
 
+## Git workflow
+
+- **Always `git pull origin main` before creating a new branch.** Branching from
+  a stale local main causes the branch to miss recently merged commits and
+  requires a rebase to fix.
+
+---
+
 ## When making changes
 
 - **Structural or architectural changes:** read SPECIFICATION.md first
